@@ -1,14 +1,25 @@
 -- ==========================================
 -- KEREN HUB - CDID JATIM AUTO FARM TRUCK
--- FULL STATS & UNIVERSAL MONEY DETECTOR (FIXED)
+-- LIQUID GLASS EDITION (ALL-IN-ONE)
 -- ==========================================
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
+-- TEMA LIQUID GLASS / FROSTED IOS
+WindUI:SetTheme("Dark")
+WindUI:SetTransparent(true)
+
 local Window = WindUI:CreateWindow({
     Title = "Keren Hub - Jatim",
-    Icon = "sparkles",
+    Icon = "apple",
     Author = "by Kenzo",
-    Folder = "KerenHubJatimConfig"
+    Folder = "KerenHubJatimConfig",
+    Transparent = true,
+    Theme = {
+        Accent = Color3.fromRGB(120, 180, 255),       -- Cyan/Blue Ice
+        Background = Color3.fromRGB(15, 20, 30),     -- Deep Glass Blue
+        Outline = Color3.fromRGB(255, 255, 255),      -- Frosted Border
+        Text = Color3.fromRGB(240, 245, 255)         -- Crisp White
+    }
 })
 
 -- TAB & SECTION
@@ -84,7 +95,7 @@ local function notify(title, text, duration)
 end
 
 -- ==========================================
--- UNIVERSAL MONEY SNIFFER (YOUR CUSTOM LOGIC)
+-- UNIVERSAL MONEY SNIFFER
 -- ==========================================
 local function isDompetFrame(obj)
     local success, isMatch = pcall(function()
@@ -148,7 +159,9 @@ task.spawn(function()
     while task.wait(1.5) do updateStatsDisplay() end
 end)
 
--- OVERLAY HITAM PEKAT
+-- ==========================================
+-- OVERLAY LIQUID GLASS ALA IPHONE
+-- ==========================================
 local function showOverlay()
     pcall(function()
         if not BlackScreenEnabled or PlayerGui:FindFirstChild("KHubAutoFarmOverlay") then return end
@@ -161,55 +174,120 @@ local function showOverlay()
 
         local bgFrame = Instance.new("Frame")
         bgFrame.Size = UDim2.new(1, 0, 1, 0)
-        bgFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        bgFrame.BackgroundColor3 = Color3.fromRGB(8, 12, 20)
+        bgFrame.BackgroundTransparency = 0.15
         bgFrame.Parent = screenGui
 
-        local centerContainer = Instance.new("Frame")
-        centerContainer.Size = UDim2.new(0, 300, 0, 250)
-        centerContainer.Position = UDim2.new(0.5, -150, 0.5, -125)
-        centerContainer.BackgroundTransparency = 1
-        centerContainer.Parent = bgFrame
+        local glassCard = Instance.new("Frame")
+        glassCard.Size = UDim2.new(0, 340, 0, 220)
+        glassCard.Position = UDim2.new(0.5, -170, 0.5, -110)
+        glassCard.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        glassCard.BackgroundTransparency = 0.90
+        glassCard.Parent = bgFrame
 
-        local logoBox = Instance.new("Frame")
-        logoBox.Size = UDim2.new(0, 90, 0, 90)
-        logoBox.Position = UDim2.new(0.5, -45, 0, 10)
-        logoBox.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-        logoBox.BorderColor3 = Color3.fromRGB(255, 255, 255)
-        logoBox.BorderSizePixel = 2
-        logoBox.Parent = centerContainer
+        local cardCorner = Instance.new("UICorner")
+        cardCorner.CornerRadius = UDim.new(0, 24)
+        cardCorner.Parent = glassCard
 
-        local uiCorner = Instance.new("UICorner")
-        uiCorner.CornerRadius = UDim.new(0, 12)
-        uiCorner.Parent = logoBox
+        local glassGradient = Instance.new("UIGradient")
+        glassGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(150, 200, 255)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 120, 200))
+        })
+        glassGradient.Rotation = 45
+        glassGradient.Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.82),
+            NumberSequenceKeypoint.new(1, 0.94)
+        })
+        glassGradient.Parent = glassCard
+
+        local glassStroke = Instance.new("UIStroke")
+        glassStroke.Thickness = 1.5
+        glassStroke.Color = Color3.fromRGB(255, 255, 255)
+        glassStroke.Transparency = 0.4
+        glassStroke.Parent = glassCard
+
+        local strokeGradient = Instance.new("UIGradient")
+        strokeGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(120, 180, 255)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))
+        })
+        strokeGradient.Rotation = 135
+        strokeGradient.Parent = glassStroke
+
+        local logoCapsule = Instance.new("Frame")
+        logoCapsule.Size = UDim2.new(0, 60, 0, 60)
+        logoCapsule.Position = UDim2.new(0.5, -30, 0, 20)
+        logoCapsule.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        logoCapsule.BackgroundTransparency = 0.85
+        logoCapsule.Parent = glassCard
+
+        local capCorner = Instance.new("UICorner")
+        capCorner.CornerRadius = UDim.new(1, 0)
+        capCorner.Parent = logoCapsule
+
+        local capStroke = Instance.new("UIStroke")
+        capStroke.Thickness = 1
+        capStroke.Color = Color3.fromRGB(255, 255, 255)
+        capStroke.Transparency = 0.5
+        capStroke.Parent = logoCapsule
 
         local logoText = Instance.new("TextLabel")
         logoText.Size = UDim2.new(1, 0, 1, 0)
         logoText.BackgroundTransparency = 1
-        logoText.Text = "K"
+        logoText.Text = ""
         logoText.TextColor3 = Color3.fromRGB(255, 255, 255)
-        logoText.TextSize = 50
+        logoText.TextSize = 28
         logoText.Font = Enum.Font.GothamBold
-        logoText.Parent = logoBox
+        logoText.Parent = logoCapsule
 
         local titleLabel = Instance.new("TextLabel")
-        titleLabel.Size = UDim2.new(1, 0, 0, 40)
-        titleLabel.Position = UDim2.new(0, 0, 0, 110)
+        titleLabel.Size = UDim2.new(1, 0, 0, 30)
+        titleLabel.Position = UDim2.new(0, 0, 0, 92)
         titleLabel.BackgroundTransparency = 1
         titleLabel.Text = "Keren Hub"
         titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        titleLabel.TextSize = 26
+        titleLabel.TextSize = 22
         titleLabel.Font = Enum.Font.GothamBold
-        titleLabel.Parent = centerContainer
+        titleLabel.Parent = glassCard
 
         local statusLabel = Instance.new("TextLabel")
-        statusLabel.Size = UDim2.new(1, 0, 0, 25)
-        statusLabel.Position = UDim2.new(0, 0, 0, 150)
+        statusLabel.Size = UDim2.new(1, 0, 0, 20)
+        statusLabel.Position = UDim2.new(0, 0, 0, 122)
         statusLabel.BackgroundTransparency = 1
-        statusLabel.Text = "Auto-Farm Truck Running..."
-        statusLabel.TextColor3 = Color3.fromRGB(170, 170, 170)
-        statusLabel.TextSize = 13
+        statusLabel.Text = "JATIM TRUCK AUTO-FARM"
+        statusLabel.TextColor3 = Color3.fromRGB(160, 200, 255)
+        statusLabel.TextSize = 11
         statusLabel.Font = Enum.Font.GothamMedium
-        statusLabel.Parent = centerContainer
+        statusLabel.Parent = glassCard
+
+        local livePill = Instance.new("Frame")
+        livePill.Size = UDim2.new(0, 140, 0, 28)
+        livePill.Position = UDim2.new(0.5, -70, 0, 158)
+        livePill.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        livePill.BackgroundTransparency = 0.6
+        livePill.Parent = glassCard
+
+        local pillCorner = Instance.new("UICorner")
+        pillCorner.CornerRadius = UDim.new(1, 0)
+        pillCorner.Parent = livePill
+
+        local pillStroke = Instance.new("UIStroke")
+        pillStroke.Thickness = 1
+        pillStroke.Color = Color3.fromRGB(100, 200, 255)
+        pillStroke.Transparency = 0.6
+        pillStroke.Parent = livePill
+
+        local pillText = Instance.new("TextLabel")
+        pillText.Size = UDim2.new(1, 0, 1, 0)
+        pillText.BackgroundTransparency = 1
+        pillText.Text = "● Running..."
+        pillText.TextColor3 = Color3.fromRGB(80, 255, 160)
+        pillText.TextSize = 11
+        pillText.Font = Enum.Font.GothamBold
+        pillText.Parent = livePill
     end)
 end
 
@@ -560,7 +638,7 @@ MainSection:Dropdown({
 
 SettingsSection:Toggle({
     Title = "Black Screen Overlay",
-    Desc = "Layar hitam pekat saat auto-farm menyala",
+    Desc = "Layar hitam semi-transparan ala Liquid Glass",
     Value = false,
     Callback = function(State)
         BlackScreenEnabled = State
@@ -591,4 +669,4 @@ SettingsSection:Toggle({
     end
 })
 
-notify("Keren Hub Loaded", "Universal Money Sniffer Aktif! Cek Tab Stats 🔥", 4)
+notify("Keren Hub Loaded", "Liquid Glass Edition & Sniffer Aktif! 🔥", 4)
