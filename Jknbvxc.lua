@@ -1,672 +1,286 @@
 -- ==========================================
--- KEREN HUB - CDID JATIM AUTO FARM TRUCK
--- LIQUID GLASS EDITION (ALL-IN-ONE)
+-- KEREN HUB - BARISTA AUTO FARM (FINAL ULTIMATE VERSION)
 -- ==========================================
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
-
--- TEMA LIQUID GLASS / FROSTED IOS
-WindUI:SetTheme("Dark")
-WindUI:SetTransparent(true)
-
-local Window = WindUI:CreateWindow({
-    Title = "Keren Hub - Jatim",
-    Icon = "apple",
-    Author = "by Kenzo",
-    Folder = "KerenHubJatimConfig",
-    Transparent = true,
-    Theme = {
-        Accent = Color3.fromRGB(120, 180, 255),       -- Cyan/Blue Ice
-        Background = Color3.fromRGB(15, 20, 30),     -- Deep Glass Blue
-        Outline = Color3.fromRGB(255, 255, 255),      -- Frosted Border
-        Text = Color3.fromRGB(240, 245, 255)         -- Crisp White
-    }
-})
-
--- TAB & SECTION
-local MainTab = Window:Tab({ Title = "Home", Icon = "home" })
-local StatsTab = Window:Tab({ Title = "Stats", Icon = "chart-bar" })
-
-local MainSection = MainTab:Section({ Title = "Main Farm Jatim" })
-local SettingsSection = MainTab:Section({ Title = "Settings & Extra" })
-local StatsSection = StatsTab:Section({ Title = "Live Statistics" })
-
--- VARIABEL & LAYANAN UTAMA
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local RunService = game:GetService("RunService")
+local VirtualUser = game:GetService("VirtualUser")
 local Workspace = game:GetService("Workspace")
-local GuiService = game:GetService("GuiService")
+
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-local AutoTruckEnabled = false
-local AntiAfkEnabled = false
-local NoclipEnabled = false
-local BlackScreenEnabled = false
+-- Hapus UI lama kalau script-nya di-execute ulang
+if PlayerGui:FindFirstChild("WindUIBarista") then
+    PlayerGui.WindUIBarista:Destroy()
+end
 
-local TweenDuration = 10.0
-local SelectedMode = "Auto (Sniffer)"
-local ManualCityTarget = "surabaya"
+-- ==========================================
+-- MEMBUAT CUSTOM WIND UI (MINIMALIST iOS DARK STYLE)
+-- ==========================================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "WindUIBarista"
+ScreenGui.Parent = PlayerGui
+ScreenGui.ResetOnSpawn = false
 
-local detectedDestinationCoords = nil
-local farmThread = nil
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+MainFrame.Position = UDim2.new(0.5, -125, 0.1, 0)
+MainFrame.Size = UDim2.new(0, 250, 0, 135)
+MainFrame.Active = true
+MainFrame.Draggable = true
 
--- TRACKING STATS
-local InitialMoney = 0
-local EarnedMoney = 0
-local TotalTrips = 0
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 14)
+UICorner.Parent = MainFrame
 
-pcall(function()
-    GuiService:SetGameplayPausedNotificationEnabled(false)
+local UIGradient = Instance.new("UIGradient")
+UIGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 25, 35)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 10, 15))
+})
+UIGradient.Rotation = 45
+UIGradient.Parent = MainFrame
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(60, 60, 80)
+UIStroke.Thickness = 1.5
+UIStroke.Parent = MainFrame
+
+-- Title Header
+local Title = Instance.new("TextLabel")
+Title.Parent = MainFrame
+Title.BackgroundTransparency = 1
+Title.Position = UDim2.new(0, 0, 0, 12)
+Title.Size = UDim2.new(1, 0, 0, 22)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "☕ Wind UI • Barista Auto-Farm"
+Title.TextColor3 = Color3.fromRGB(240, 240, 255)
+Title.TextSize = 13
+
+-- Status Text Label
+local StatusText = Instance.new("TextLabel")
+StatusText.Parent = MainFrame
+StatusText.BackgroundTransparency = 1
+StatusText.Position = UDim2.new(0, 10, 0, 42)
+StatusText.Size = UDim2.new(1, -20, 0, 25)
+StatusText.Font = Enum.Font.Gotham
+StatusText.Text = "Status: Standby (Mati 🔴)"
+StatusText.TextColor3 = Color3.fromRGB(170, 170, 190)
+StatusText.TextSize = 11
+
+-- Toggle Button (Wind UI Style)
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Parent = MainFrame
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+ToggleBtn.Position = UDim2.new(0.08, 0, 0, 78)
+ToggleBtn.Size = UDim2.new(0.84, 0, 0, 36)
+ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.Text = "AUTO FARM: OFF"
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.TextSize = 12
+
+local BtnCorner = Instance.new("UICorner")
+BtnCorner.CornerRadius = UDim.new(0, 10)
+BtnCorner.Parent = ToggleBtn
+
+-- ==========================================
+-- LOGIC AUTO-FARM & WAYPOINT TELEPORT
+-- ==========================================
+local AutoBaristaEnabled = false
+local BaristaEvent = ReplicatedStorage:WaitForChild("BaristaAssets"):WaitForChild("Events"):WaitForChild("BaristaEvent")
+local LatestToken = nil
+
+BaristaEvent.OnClientEvent:Connect(function(action, data)
+    pcall(function()
+        if type(data) == "table" and data.Token then
+            LatestToken = data.Token
+        end
+    end)
 end)
 
--- KOORDINAT MAP JATIM
 local COORDS = {
-    Start = CFrame.new(34938.0234, 134.4782, -54577.8906),
-    Spawn = CFrame.new(35161.5195, 134.4782, -54681.5781),
-    Drive = CFrame.new(35170.3945, 134.4782, -54687.0977)
+    ShiftSpot     = Vector3.new(-4992.262, 4.287, -716.253),
+    CoffeeMachine = Vector3.new(-4997.648, 4.287, -794.613),
+    Customer      = Vector3.new(-4996.451, 4.287, -760.959)
 }
 
--- DATABASE RUKO TUJUAN
-local DESTINATION_DATABASE = {
-    ["kediri"]     = CFrame.new(-10032.3604, 211.4886, 5129.3950),
-    ["ngawi"]      = CFrame.new(37564.2305, 132.8297, -47529.4883),
-    ["surabaya"]   = CFrame.new(27153.5664, 387.3378, 37787.8828),
-    ["sidoarjo"]   = CFrame.new(12900.3945, 385.6128, 52071.6250),
-    ["malang"]     = CFrame.new(-7848.0903, 386.4347, 46865.0312),
+-- List Kordinat Waypoint Slow Load Seated Teleport
+local shiftWaypoints = {
+    CFrame.new(-898.326, 2.788, -630.031),
+    CFrame.new(-2192.834, 37.488, -582.452),
+    CFrame.new(-3533.805, 2.759, -582.758),
+    CFrame.new(-4554.525, 2.759, -581.123),
+    CFrame.new(-4943.070, 2.759, -582.773),
+    CFrame.new(COORDS.ShiftSpot.X, COORDS.ShiftSpot.Y, COORDS.ShiftSpot.Z)
 }
 
--- FUNGSI HELPER STATS & FORMAT
-local function formatNumber(n)
-    local num = tostring(math.floor(n or 0))
-    return num:reverse():gsub("(%d%d%d)", "%1."):reverse():gsub("^%.", "")
-end
-
-local function notify(title, text, duration)
-    pcall(function()
-        WindUI:Notify({
-            Title = title,
-            Content = text,
-            Duration = duration or 2,
-            Icon = "bell"
-        })
-    end)
-end
-
--- ==========================================
--- UNIVERSAL MONEY SNIFFER
--- ==========================================
-local function isDompetFrame(obj)
-    local success, isMatch = pcall(function()
-        if not (obj:IsA("TextLabel") or obj:IsA("TextButton")) or not obj.Visible or obj.Text == "" then
-            return false
-        end
-        
-        local txtUpper = obj.Text:upper()
-        if not (txtUpper:find("RP") and txtUpper:find("%d")) then
-            return false
-        end
-        
-        local pos = obj.AbsolutePosition
-        local screenSize = workspace.CurrentCamera.ViewportSize
-        
-        if screenSize.X > 0 and screenSize.Y > 0 then
-            return (pos.X < (screenSize.X * 0.35)) and (pos.Y > (screenSize.Y * 0.5))
-        end
-        
-        return false
-    end)
-    
-    return success and isMatch
-end
-
-local function getCDIDMoneyText()
-    local pGui = LocalPlayer:FindFirstChild("PlayerGui")
-    if not pGui then return 0 end
-
-    for _, obj in ipairs(pGui:GetDescendants()) do
-        if isDompetFrame(obj) then
-            local digitsOnly = obj.Text:gsub("%D", "")
-            local cleanNum = tonumber(digitsOnly)
-            if cleanNum and cleanNum > 0 then
-                return cleanNum
-            end
-        end
-    end
-
-    return 0
-end
-
--- STATS PARAGRAPH
-local CurrentMoneyParagraph = StatsSection:Paragraph({ Title = "Uang Kita (Dompet)", Desc = "Rp 0", Image = "wallet" })
-local EarnedMoneyParagraph = StatsSection:Paragraph({ Title = "Total Pendapatan (Sesi Ini)", Desc = "+ Rp 0", Image = "trending-up" })
-local TripParagraph = StatsSection:Paragraph({ Title = "Total Trip Selesai", Desc = "0 Trip", Image = "truck" })
-
-local function updateStatsDisplay()
-    pcall(function()
-        local currentVal = getCDIDMoneyText()
-        if InitialMoney == 0 and currentVal > 0 then InitialMoney = currentVal end
-        if InitialMoney > 0 and currentVal >= InitialMoney then EarnedMoney = currentVal - InitialMoney end
-
-        CurrentMoneyParagraph:SetDesc("Rp " .. formatNumber(currentVal))
-        EarnedMoneyParagraph:SetDesc("+ Rp " .. formatNumber(EarnedMoney))
-        TripParagraph:SetDesc(tostring(TotalTrips) .. " Trip Selesai")
-    end)
-end
-
+-- Anti-AFK
 task.spawn(function()
-    while task.wait(1.5) do updateStatsDisplay() end
-end)
-
--- ==========================================
--- OVERLAY LIQUID GLASS ALA IPHONE
--- ==========================================
-local function showOverlay()
-    pcall(function()
-        if not BlackScreenEnabled or PlayerGui:FindFirstChild("KHubAutoFarmOverlay") then return end
-        
-        local screenGui = Instance.new("ScreenGui")
-        screenGui.Name = "KHubAutoFarmOverlay"
-        screenGui.Parent = PlayerGui
-        screenGui.IgnoreGuiInset = true
-        screenGui.DisplayOrder = 999999999
-
-        local bgFrame = Instance.new("Frame")
-        bgFrame.Size = UDim2.new(1, 0, 1, 0)
-        bgFrame.BackgroundColor3 = Color3.fromRGB(8, 12, 20)
-        bgFrame.BackgroundTransparency = 0.15
-        bgFrame.Parent = screenGui
-
-        local glassCard = Instance.new("Frame")
-        glassCard.Size = UDim2.new(0, 340, 0, 220)
-        glassCard.Position = UDim2.new(0.5, -170, 0.5, -110)
-        glassCard.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        glassCard.BackgroundTransparency = 0.90
-        glassCard.Parent = bgFrame
-
-        local cardCorner = Instance.new("UICorner")
-        cardCorner.CornerRadius = UDim.new(0, 24)
-        cardCorner.Parent = glassCard
-
-        local glassGradient = Instance.new("UIGradient")
-        glassGradient.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(150, 200, 255)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 120, 200))
-        })
-        glassGradient.Rotation = 45
-        glassGradient.Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 0.82),
-            NumberSequenceKeypoint.new(1, 0.94)
-        })
-        glassGradient.Parent = glassCard
-
-        local glassStroke = Instance.new("UIStroke")
-        glassStroke.Thickness = 1.5
-        glassStroke.Color = Color3.fromRGB(255, 255, 255)
-        glassStroke.Transparency = 0.4
-        glassStroke.Parent = glassCard
-
-        local strokeGradient = Instance.new("UIGradient")
-        strokeGradient.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(120, 180, 255)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))
-        })
-        strokeGradient.Rotation = 135
-        strokeGradient.Parent = glassStroke
-
-        local logoCapsule = Instance.new("Frame")
-        logoCapsule.Size = UDim2.new(0, 60, 0, 60)
-        logoCapsule.Position = UDim2.new(0.5, -30, 0, 20)
-        logoCapsule.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        logoCapsule.BackgroundTransparency = 0.85
-        logoCapsule.Parent = glassCard
-
-        local capCorner = Instance.new("UICorner")
-        capCorner.CornerRadius = UDim.new(1, 0)
-        capCorner.Parent = logoCapsule
-
-        local capStroke = Instance.new("UIStroke")
-        capStroke.Thickness = 1
-        capStroke.Color = Color3.fromRGB(255, 255, 255)
-        capStroke.Transparency = 0.5
-        capStroke.Parent = logoCapsule
-
-        local logoText = Instance.new("TextLabel")
-        logoText.Size = UDim2.new(1, 0, 1, 0)
-        logoText.BackgroundTransparency = 1
-        logoText.Text = ""
-        logoText.TextColor3 = Color3.fromRGB(255, 255, 255)
-        logoText.TextSize = 28
-        logoText.Font = Enum.Font.GothamBold
-        logoText.Parent = logoCapsule
-
-        local titleLabel = Instance.new("TextLabel")
-        titleLabel.Size = UDim2.new(1, 0, 0, 30)
-        titleLabel.Position = UDim2.new(0, 0, 0, 92)
-        titleLabel.BackgroundTransparency = 1
-        titleLabel.Text = "Keren Hub"
-        titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        titleLabel.TextSize = 22
-        titleLabel.Font = Enum.Font.GothamBold
-        titleLabel.Parent = glassCard
-
-        local statusLabel = Instance.new("TextLabel")
-        statusLabel.Size = UDim2.new(1, 0, 0, 20)
-        statusLabel.Position = UDim2.new(0, 0, 0, 122)
-        statusLabel.BackgroundTransparency = 1
-        statusLabel.Text = "JATIM TRUCK AUTO-FARM"
-        statusLabel.TextColor3 = Color3.fromRGB(160, 200, 255)
-        statusLabel.TextSize = 11
-        statusLabel.Font = Enum.Font.GothamMedium
-        statusLabel.Parent = glassCard
-
-        local livePill = Instance.new("Frame")
-        livePill.Size = UDim2.new(0, 140, 0, 28)
-        livePill.Position = UDim2.new(0.5, -70, 0, 158)
-        livePill.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-        livePill.BackgroundTransparency = 0.6
-        livePill.Parent = glassCard
-
-        local pillCorner = Instance.new("UICorner")
-        pillCorner.CornerRadius = UDim.new(1, 0)
-        pillCorner.Parent = livePill
-
-        local pillStroke = Instance.new("UIStroke")
-        pillStroke.Thickness = 1
-        pillStroke.Color = Color3.fromRGB(100, 200, 255)
-        pillStroke.Transparency = 0.6
-        pillStroke.Parent = livePill
-
-        local pillText = Instance.new("TextLabel")
-        pillText.Size = UDim2.new(1, 0, 1, 0)
-        pillText.BackgroundTransparency = 1
-        pillText.Text = "● Running..."
-        pillText.TextColor3 = Color3.fromRGB(80, 255, 160)
-        pillText.TextSize = 11
-        pillText.Font = Enum.Font.GothamBold
-        pillText.Parent = livePill
-    end)
-end
-
-local function hideOverlay()
-    pcall(function()
-        if PlayerGui:FindFirstChild("KHubAutoFarmOverlay") then
-            PlayerGui.KHubAutoFarmOverlay:Destroy()
-        end
-    end)
-end
-
--- LOGIKA SNIFFER DESTINATION
-local function processDestinationText(text)
-    if text and text ~= "" then
-        local lowerText = text:lower()
-        if lowerText:find("destination") or lowerText:find("tujuan") then
-            for city, cframeVal in pairs(DESTINATION_DATABASE) do
-                if lowerText:find(city) then
-                    detectedDestinationCoords = cframeVal
-                    notify("Destination Sniffer", "Tujuan Terdeteksi: " .. city:upper(), 3)
-                    return 
-                end
-            end
-        end
-    end
-end
-
-local function initSniffer()
-    pcall(function()
-        for _, obj in ipairs(PlayerGui:GetDescendants()) do
-            if obj:IsA("TextLabel") or obj:IsA("TextButton") then
-                processDestinationText(obj.Text)
-                if not obj:GetAttribute("SnifferHooked") then
-                    obj:SetAttribute("SnifferHooked", true)
-                    obj:GetPropertyChangedSignal("Text"):Connect(function()
-                        processDestinationText(obj.Text)
-                    end)
-                end
-            end
-        end
-    end)
-end
-
-initSniffer()
-PlayerGui.DescendantAdded:Connect(function(child)
-    if child:IsA("TextLabel") or child:IsA("TextButton") then
-        processDestinationText(child.Text)
-        child:GetPropertyChangedSignal("Text"):Connect(function() processDestinationText(child.Text) end)
-    end
-end)
-
--- NOCLIP & ANTI-AFK
-RunService.Stepped:Connect(function()
-    if NoclipEnabled and LocalPlayer.Character then
-        for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
-            if part:IsA("BasePart") then part.CanCollide = false end
-        end
-    end
-end)
-
-task.spawn(function()
-    local vu = game:GetService("VirtualUser")
     LocalPlayer.Idled:Connect(function()
-        if AntiAfkEnabled then
-            vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-            task.wait(1)
-            vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-        end
+        VirtualUser:Button2Down(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
+        task.wait(1)
+        VirtualUser:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
     end)
 end)
 
+-- Fitur "Bar Gede" & Auto Click Minigame GUI
 task.spawn(function()
-    pcall(function()
-        for _, v in ipairs(Workspace:GetDescendants()) do if v:IsA("ProximityPrompt") then v.HoldDuration = 0 end end
-        Workspace.DescendantAdded:Connect(function(v) if v:IsA("ProximityPrompt") then v.HoldDuration = 0 end end)
-    end)
-end)
-
--- TELEPORT & INTERACT
-local function tp(cf)
-    pcall(function()
-        local char = LocalPlayer.Character
-        if char then
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            local seat = humanoid and humanoid.SeatPart
-            local targetObj = (seat and seat.Parent) or char:FindFirstChild("HumanoidRootPart")
-            if not targetObj then return end
-
-            for _, part in ipairs(targetObj:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                    part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                end
-            end
-
-            local targetCFrame = CFrame.new(cf.Position + Vector3.new(0, 3, 0))
-            if targetObj:IsA("Model") and targetObj.PrimaryPart then
-                targetObj:SetPrimaryPartCFrame(targetCFrame)
-            elseif targetObj:IsA("Model") then
-                local part = targetObj:FindFirstChildWhichIsA("BasePart")
-                if part then part.CFrame = targetCFrame end
-            else
-                targetObj.CFrame = targetCFrame
-            end
-        end
-    end)
-end
-
-local function getNearestPrompt(maxDistance)
-    maxDistance = maxDistance or 20
-    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return nil end
-    
-    local nearestPrompt = nil
-    local shortestDist = maxDistance
-
-    for _, v in pairs(workspace:GetDescendants()) do
-        if v:IsA("ProximityPrompt") and v.Parent then
-            local partPos = v.Parent:IsA("Model") and v.Parent.PrimaryPart and v.Parent.PrimaryPart.Position or (v.Parent:IsA("BasePart") and v.Parent.Position)
-            if partPos then
-                local dist = (partPos - hrp.Position).Magnitude
-                if dist < shortestDist then
-                    shortestDist = dist
-                    nearestPrompt = v
-                end
-            end
-        end
-    end
-    return nearestPrompt
-end
-
-local function firePromptOrKey(keyFallback)
-    local prompt = getNearestPrompt(20)
-    if prompt then
-        if fireproximityprompt then 
-            fireproximityprompt(prompt) 
-        else 
-            prompt:InputHoldBegin() 
-            task.wait(prompt.HoldDuration) 
-            prompt:InputHoldEnd() 
-        end
-    else
-        VirtualInputManager:SendKeyEvent(true, keyFallback, false, game)
-        task.wait(0.05)
-        VirtualInputManager:SendKeyEvent(false, keyFallback, false, game)
-    end
-end
-
--- TWEEN SLOW-LOAD TELEPORT
-local function tpDestination(targetCF)
-    pcall(function()
-        local char = LocalPlayer.Character
-        if char then
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            local seat = humanoid and humanoid.SeatPart
-            local vehicle = seat and seat.Parent
-            
-            if not vehicle or not vehicle:IsA("Model") then vehicle = char:FindFirstChild("HumanoidRootPart") end
-            if not vehicle then return end
-
-            local startCFrame = vehicle:IsA("Model") and (vehicle.PrimaryPart and vehicle.PrimaryPart.CFrame or vehicle:GetPivot()) or vehicle.CFrame
-            local endCFrame = CFrame.new(targetCF.Position + Vector3.new(0, 8, 0))
-            local totalSteps = math.max(20, math.floor(TweenDuration * 8)) 
-            
-            for i = 1, totalSteps do
-                if not AutoTruckEnabled then break end
-                local alpha = i / totalSteps
-                local intermediateCFrame = startCFrame:Lerp(endCFrame, alpha)
-                
-                for _, part in ipairs(vehicle:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                        part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+    while task.wait(0.05) do
+        pcall(function()
+            if AutoBaristaEnabled then
+                local baristaGui = PlayerGui:FindFirstChild("BaristaGUI")
+                if baristaGui then
+                    local targetZone = baristaGui:FindFirstChild("TargetZone", true)
+                    if targetZone then
+                        targetZone.Size = UDim2.new(targetZone.Size.X.Scale, targetZone.Size.X.Offset, 1, 0)
+                    end
+                    
+                    for _, v in pairs(baristaGui:GetDescendants()) do
+                        if (v:IsA("TextButton") or v:IsA("ImageButton")) and firesignal then
+                            firesignal(v.MouseButton1Click)
+                        end
                     end
                 end
-                
-                if vehicle:IsA("Model") then vehicle:PivotTo(intermediateCFrame) else vehicle.CFrame = intermediateCFrame end
-                task.wait(TweenDuration / totalSteps)
             end
+        end)
+    end
+end)
 
-            notify("Keren Hub 🚚", "Menunggu Ruko/Destination Ter-render...", 2)
-            local renderTimer = tick()
-            while (tick() - renderTimer) < 5 do
-                if not AutoTruckEnabled then break end
-                local hrp = char:FindFirstChild("HumanoidRootPart")
-                local prompt = getNearestPrompt(25)
-                local raycast = hrp and workspace:Raycast(hrp.Position, Vector3.new(0, -20, 0))
-                if prompt or raycast then break end
-                task.wait(0.3)
-            end
-
-            task.wait(1.5)
-            notify("Keren Hub 🎯", "Finishing Cargo...", 2)
-            for i = 1, 5 do
-                if not AutoTruckEnabled then break end
-                firePromptOrKey(Enum.KeyCode.E)
-                task.wait(0.3)
-            end
-
-            TotalTrips = TotalTrips + 1
-            updateStatsDisplay()
-            task.wait(1.5)
+-- Pilih Job Barista (Delay 3 detik)
+local function selectBaristaJob()
+    pcall(function()
+        local Event = ReplicatedStorage:FindFirstChild("JobEvents") and ReplicatedStorage.JobEvents:FindFirstChild("TeamChangeRequest")
+        if Event then 
+            Event:FireServer("Barista", 11378976, 1, 0, "Detector") 
+            task.wait(3) 
         end
     end)
 end
 
--- TAHAP PREPARASI
-local function tryFullPreparationSequence()
-    if not AutoTruckEnabled then return false end
+-- Slow Load Seated Teleport dengan jeda 0,5 detik per waypoint
+local function slowLoadSeatedTeleport(waypointList)
+    pcall(function()
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+        if not hrp or not humanoid then return end
 
-    notify("Keren Hub [1/3]", "Teleport ke Start Job...", 2)
-    tp(COORDS.Start)
-    task.wait(1.5)
+        for _, targetCFrame in ipairs(waypointList) do
+            if not AutoBaristaEnabled then break end
+            humanoid.Sit = true
+            task.wait(0.15)
+            hrp.CFrame = targetCFrame
+            task.wait(0.5)
+        end
 
-    pcall(function() ReplicatedStorage.NetworkContainer.RemoteEvents.Job:FireServer("Truck") end)
-
-    local startPrompt = nil
-    local startTime = tick()
-    while (tick() - startTime) < 3.5 do
-        startPrompt = getNearestPrompt(20)
-        if startPrompt then break end
+        humanoid.Sit = false
         task.wait(0.2)
-    end
-
-    for i = 1, 5 do firePromptOrKey(Enum.KeyCode.E) task.wait(0.2) end
-    task.wait(1.5)
-
-    if not AutoTruckEnabled then return false end
-
-    notify("Keren Hub [2/3]", "Teleport & SPAWN TRUCK...", 2)
-    tp(COORDS.Spawn)
-    task.wait(1.2)
-    for i = 1, 3 do firePromptOrKey(Enum.KeyCode.F) task.wait(0.3) end
-    task.wait(2.0)
-
-    if not AutoTruckEnabled then return false end
-
-    notify("Keren Hub [3/3]", "Teleport & DRIVE SEAT...", 2)
-    tp(COORDS.Drive)
-    task.wait(1.2)
-    for i = 1, 3 do firePromptOrKey(Enum.KeyCode.E) task.wait(0.3) end
-    task.wait(1.5)
-    
-    local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-    if humanoid and humanoid.SeatPart then
-        notify("Keren Hub ✅", "Berhasil Naik Truk! Persiapan Lolos.", 3)
-        return true
-    else
-        notify("Keren Hub ❌", "Luput/Gagal Naik Truk! Reset dari Start...", 2)
-        return false
-    end
+    end)
 end
 
--- LOOPING AUTO FARM
-local function startFarmLoop()
-    if farmThread then task.cancel(farmThread) end
-    
-    farmThread = task.spawn(function()
-        while AutoTruckEnabled do
-            detectedDestinationCoords = nil
-            local lockedDestination = nil
-            local preparationSuccess = false
-            local attemptCount = 0
+-- Fungsi Jalan Melangkah Normal ke Mesin/Pelanggan
+local function walkTo(targetVector)
+    pcall(function()
+        local char = LocalPlayer.Character
+        local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if not humanoid or not hrp then return end
 
-            while not preparationSuccess and AutoTruckEnabled do
-                attemptCount = attemptCount + 1
-                notify("Keren Hub 🔄", "Persiapan Route #" .. attemptCount, 2)
-                preparationSuccess = tryFullPreparationSequence()
-                if not preparationSuccess then task.wait(1.5) end
+        humanoid:MoveTo(targetVector)
+        
+        local startTime = tick()
+        while AutoBaristaEnabled do
+            local dist = (hrp.Position - targetVector).Magnitude
+            if dist <= 3.5 or (tick() - startTime) > 6 then
+                break
             end
-
-            if not AutoTruckEnabled then break end
-
-            notify("Keren Hub 🚚💨", "Persiapan Selesai! Menunggu Sniffer/Otw...", 3)
-
-            local preDelay = 0
-            while preDelay < 30 do
-                if not AutoTruckEnabled then break end
-                if SelectedMode == "Auto (Sniffer)" and detectedDestinationCoords and not lockedDestination then
-                    lockedDestination = detectedDestinationCoords
-                end
-                task.wait(1)
-                preDelay = preDelay + 1
-            end
-            if not AutoTruckEnabled then break end
-
-            local targetRuko = nil
-            if SelectedMode == "Auto (Sniffer)" then
-                targetRuko = lockedDestination or detectedDestinationCoords
-            else
-                targetRuko = DESTINATION_DATABASE[ManualCityTarget]
-            end
-
-            if not targetRuko then
-                targetRuko = DESTINATION_DATABASE[ManualCityTarget] or DESTINATION_DATABASE["surabaya"]
-            end
-
-            tpDestination(targetRuko)
-            if not AutoTruckEnabled then break end
-            task.wait(2.0)
+            task.wait(0.2)
         end
     end)
 end
 
--- ELEMENT UI CONTROL
-MainSection:Toggle({
-    Title = "Auto Farm Truck Jatim",
-    Desc = "Jalan otomatis, antar kargo aman",
-    Value = false,
-    Callback = function(State)
-        AutoTruckEnabled = State
-        NoclipEnabled = State 
-        
-        if State then
-            showOverlay()
-            notify("Jatim Truck Farm", "Auto Farm Aktif!", 2)
-            startFarmLoop()
-        else
-            hideOverlay()
-            notify("Jatim Truck Farm", "Auto Farm Dimatikan.", 2)
-            if farmThread then
-                task.cancel(farmThread)
-                farmThread = nil
+local function fireNearestPrompt()
+    pcall(function()
+        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        for _, v in pairs(Workspace:GetDescendants()) do
+            if v:IsA("ProximityPrompt") and v.Parent then
+                local partPos = v.Parent:IsA("Model") and v.Parent.PrimaryPart and v.Parent.PrimaryPart.Position or (v.Parent:IsA("BasePart") and v.Parent.Position)
+                if partPos and (partPos - hrp.Position).Magnitude <= 15 then
+                    if fireproximityprompt then fireproximityprompt(v) end
+                end
             end
         end
-    end
-})
+    end)
+end
 
-MainSection:Dropdown({
-    Title = "Mode Tujuan Rute",
-    Values = {"Auto (Sniffer)", "Manual (Pilih Kota)"},
-    Value = "Auto (Sniffer)",
-    Callback = function(Option)
-        SelectedMode = Option
-        notify("Mode Diubah", "Mode: " .. tostring(Option), 2)
-    end
-})
+-- MAIN LOOP
+task.spawn(function()
+    while true do
+        if AutoBaristaEnabled then
+            pcall(function()
+                -- Step 1: Pilih Job Barista
+                StatusText.Text = "Status: Memilih Job Barista..."
+                selectBaristaJob()
 
-MainSection:Dropdown({
-    Title = "Pilih Kota Tujuan (Jika Manual)",
-    Values = {"surabaya", "sidoarjo", "ngawi", "kediri", "malang"},
-    Value = "surabaya",
-    Callback = function(Option)
-        ManualCityTarget = Option:lower()
-        notify("Kota Dipilih", "Target Manual: " .. Option:upper(), 2)
-    end
-})
+                -- Step 2: Slow Load Seated Teleport ke Shift Spot
+                StatusText.Text = "Status: Teleport ke Shift Spot..."
+                slowLoadSeatedTeleport(shiftWaypoints)
+                task.wait(0.5)
+                
+                -- Step 3: Toggle Job & ProximityPrompt
+                BaristaEvent:FireServer("ToggleJob")
+                fireNearestPrompt()
+                task.wait(1)
 
-SettingsSection:Toggle({
-    Title = "Black Screen Overlay",
-    Desc = "Layar hitam semi-transparan ala Liquid Glass",
-    Value = false,
-    Callback = function(State)
-        BlackScreenEnabled = State
-        if State and AutoTruckEnabled then showOverlay() else hideOverlay() end
-        notify("Black Screen", "Status: " .. (State and "Aktif" or "Mati"), 2)
-    end
-})
+                -- Loop Siklus Kerja (Jalan Kaki Normal)
+                while AutoBaristaEnabled do
+                    StatusText.Text = "Status: Memanggil Pelanggan..."
+                    BaristaEvent:FireServer("RequestCustomer")
+                    task.wait(1)
+                    if not AutoBaristaEnabled then break end
 
-SettingsSection:Input({
-    Title = "Durasi Perjalanan Ruko (Detik)",
-    Placeholder = "Contoh: 10",
-    Callback = function(Text)
-        local num = tonumber(Text)
-        if num then
-            TweenDuration = num
-            notify("Durasi Diubah", "Waktu jalan ruko diset: " .. num .. " detik", 2)
+                    StatusText.Text = "Status: Berjalan ke Mesin Kopi..."
+                    walkTo(COORDS.CoffeeMachine)
+                    BaristaEvent:FireServer("TryBrew")
+                    task.wait(0.5)
+
+                    local tokenToUse = LatestToken or "6c0c8fd5-012a-4566-85dc-a5edcbb5cd00"
+                    BaristaEvent:FireServer("StartMinigame", { Token = tokenToUse })
+                    task.wait(0.3)
+                    BaristaEvent:FireServer("CompleteMinigame", { Token = tokenToUse })
+                    task.wait(1)
+                    if not AutoBaristaEnabled then break end
+
+                    StatusText.Text = "Status: Berjalan ke Pelanggan..."
+                    walkTo(COORDS.Customer)
+                    BaristaEvent:FireServer("ServeOrder")
+                    
+                    StatusText.Text = "Status: Selesai, Next Customer..."
+                    task.wait(1.5)
+                end
+            end)
+        else
+            StatusText.Text = "Status: Standby (Mati 🔴)"
+            task.wait(0.5)
         end
+        task.wait(0.5)
     end
-})
+end)
 
-SettingsSection:Toggle({
-    Title = "Anti-AFK",
-    Desc = "Mencegah agar tidak ke-kick otomatis oleh server",
-    Value = false,
-    Callback = function(State)
-        AntiAfkEnabled = State
-        notify("Anti-AFK", State and "Anti-AFK Diaktifkan!" or "Anti-AFK Dimatikan.", 2)
+-- Tombol On / Off Callback
+ToggleBtn.MouseButton1Click:Connect(function()
+    AutoBaristaEnabled = not AutoBaristaEnabled
+    if AutoBaristaEnabled then
+        ToggleBtn.Text = "AUTO FARM: ON"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 90)
+    else
+        ToggleBtn.Text = "AUTO FARM: OFF"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+        StatusText.Text = "Status: Dimatikan Manual"
     end
-})
+end)
 
-notify("Keren Hub Loaded", "Liquid Glass Edition & Sniffer Aktif! 🔥", 4)
+print("[Wind UI] Barista Auto-Farm Ultimate Berhasil Dimuat!")
