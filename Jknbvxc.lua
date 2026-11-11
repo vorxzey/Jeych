@@ -1,5 +1,5 @@
 -- ==========================================
--- KEREN HUB - BARISTA AUTO FARM (FINAL ULTIMATE VERSION)
+-- KEREN HUB - BARISTA AUTO FARM (ULTIMATE ANIMATED VERSION)
 -- ==========================================
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -180,7 +180,7 @@ local function slowLoadSeatedTeleport(waypointList)
     end)
 end
 
--- Fungsi Jalan Melangkah Normal ke Mesin/Pelanggan
+-- Fungsi Jalan Melangkah Normal (Dengan Orientasi Hadap Biar Animasi Keluar)
 local function walkTo(targetVector)
     pcall(function()
         local char = LocalPlayer.Character
@@ -188,15 +188,23 @@ local function walkTo(targetVector)
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
         if not humanoid or not hrp then return end
 
+        local lookAtTarget = Vector3.new(targetVector.X, hrp.Position.Y, targetVector.Z)
+        hrp.CFrame = CFrame.new(hrp.Position, lookAtTarget)
+        
         humanoid:MoveTo(targetVector)
         
         local startTime = tick()
         while AutoBaristaEnabled do
-            local dist = (hrp.Position - targetVector).Magnitude
+            local currentPos = hrp.Position
+            local dist = (Vector3.new(currentPos.X, 0, currentPos.Z) - Vector3.new(targetVector.X, 0, targetVector.Z)).Magnitude
+            
             if dist <= 3.5 or (tick() - startTime) > 6 then
+                humanoid:MoveTo(currentPos)
                 break
             end
-            task.wait(0.2)
+            
+            hrp.CFrame = CFrame.new(hrp.Position, Vector3.new(targetVector.X, hrp.Position.Y, targetVector.Z))
+            task.wait(0.1)
         end
     end)
 end
@@ -235,7 +243,7 @@ task.spawn(function()
                 fireNearestPrompt()
                 task.wait(1)
 
-                -- Loop Siklus Kerja (Jalan Kaki Normal)
+                -- Loop Siklus Kerja (Jalan Kaki Normal dengan Animasi)
                 while AutoBaristaEnabled do
                     StatusText.Text = "Status: Memanggil Pelanggan..."
                     BaristaEvent:FireServer("RequestCustomer")
@@ -283,4 +291,4 @@ ToggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-print("[Wind UI] Barista Auto-Farm Ultimate Berhasil Dimuat!")
+print("[Wind UI] Barista Auto-Farm Animated Version Berhasil Dimuat!")
